@@ -317,7 +317,7 @@ if [[ $action = 'new' || $action = 'make' || $action = 'create' ]]; then
 	# Inform the user of what's about to happen and give them a chance to back out
 	# =============================================================================
 	cecho "\nAbout to perform the following:" normal bold
-	echo -e "* Create db $db_name with a user: $db_user / password: $db_password, directory $site in $path/www\n and composer.json file"
+	echo -e "* Create db $db_name with a user: $db_user / password: $db_password, directory $site in $path/www\n"
 
 	# Start the par-tay
 	# =============================================================================
@@ -326,7 +326,7 @@ if [[ $action = 'new' || $action = 'make' || $action = 'create' ]]; then
 	# Create site folder with and composer.json file file
 	# =============================================================================
 	cd $path
-	echo -en "Creating site directory and wp-cli.yml"
+	echo -en "Creating site directory and and composer.json file\n\n"
 	mkdir $site && cd $site
 
 	# printf "path: htdocs/$wp_core_directory\nurl:http://$domain" > wp-cli.yml
@@ -421,9 +421,6 @@ PHP
 		fi
 
 
-		mv $path/$site/htdocs/$wp_core_directory/wp-config.php $path/$site/htdocs/
-
-
 		wp core install --url=$domain --title="$site - A WordPress Site" --admin_user=$wp_username --admin_password=$wp_password --admin_email=$wp_email --allow-root
 
 	else
@@ -433,6 +430,8 @@ PHP
 		wp core update --allow-root
 		wp core update-db --allow-root
 	fi
+
+	mv $path/$site/htdocs/$wp_core_directory/wp-config.php $path/$site/htdocs/
 
 	done_text
 
@@ -524,6 +523,7 @@ require('./$wp_core_directory/wp-blog-header.php');" > $path/$site/htdocs/index.
 	printf "server {
 	server_name $domain;
 	listen 80;
+	listen [::]:80;
 	listen 443 ssl;
 
 	root /home/webmaster/www/$site/htdocs;
@@ -536,8 +536,8 @@ require('./$wp_core_directory/wp-blog-header.php');" > $path/$site/htdocs/index.
 	sudo ln -s $path/$site/$domain /etc/nginx/sites-available/
 	sudo ln -s $path/$site/$domain /etc/nginx/sites-enabled/
 
-	$server_ip = $SSH_CONNECTION | awk {'print $3'}
 
+	sship=($SSH_CONNECTION)
 
 	cecho "\nNew wordpress Site Setup: Done!" blue bold
 	echo "Directory: $path/$site"
@@ -549,7 +549,7 @@ require('./$wp_core_directory/wp-blog-header.php');" > $path/$site/htdocs/index.
 	echo "Database Password:  $db_password"
 
 	echo "If you have no domain set up yet and be able to see your website at $domain, update your machine hosts file with the following:"
-	echo "$server_ip  $domain"
+	echo  "${sship[2]}  $domain"
 
 	exit
 
