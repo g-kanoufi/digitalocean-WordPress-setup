@@ -163,7 +163,8 @@ if [[ $action = 'new' || $action = 'make' || $action = 'create' ]]; then
 
 	# Get website URL
 	while [ -z $domain ]; do
-		echo -n "Domain to use: (if you haven't buy your domain yet, don't worry, instructions will be shown on how to get to work after the install)"
+		echo -n "Domain to use (without www): \n
+		(if you haven't buy your domain yet, don't worry, instructions will be shown on how to get to work after the install)"
 		read domain
 	done
 
@@ -521,7 +522,7 @@ require('./$wp_core_directory/wp-blog-header.php');" > $path/$site/htdocs/index.
 	touch $path/$site/$domain
 
 	printf "server {
-	server_name $domain;
+	server_name $domain www.$domain;
 	listen 80;
 	listen [::]:80;
 	listen 443 ssl;
@@ -529,7 +530,7 @@ require('./$wp_core_directory/wp-blog-header.php');" > $path/$site/htdocs/index.
 	root /home/webmaster/www/$site/htdocs;
 	index index.php index.html;
 
-	include /etc/nginx/nginx-wp-common.conf;
+
 
 }" > $path/$site/$domain
 
