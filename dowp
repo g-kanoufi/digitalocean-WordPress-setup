@@ -496,7 +496,7 @@ require('./$wp_core_directory/wp-blog-header.php');" > $path/$site/htdocs/index.
 #      break;
 #    }
 #  }
-}
+#}
 
 #if ($update) {
 #  // Do a git checkout to the web root
