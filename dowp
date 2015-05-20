@@ -8,7 +8,7 @@
 #
 # Based on Alison Barrett <alison@barre.tt>  vvv-site-wizzard  https://github.com/aliso/vvv-site-wizard
 #
-# Version 0.8
+# Version 0.9
 #
 # This script automates the creation & deletion of new WordPress sites using
 # VPS with Ubuntu - Nginx
@@ -295,19 +295,19 @@ if [[ $action = 'new' || $action = 'make' || $action = 'create' ]]; then
 
 
 
-	while [ -z $deploy ]; do
-		echo -n "Deploy from  bitbucket (y/N): "
-		read deploy
-		if [[ $deploy != 'y' && $deploy != 'n' ]]; then
-			deploy="n"
+	#while [ -z $deploy ]; do
+	#	echo -n "Deploy from  bitbucket (y/N): "
+	#	read deploy
+	#	if [[ $deploy != 'y' && $deploy != 'n' ]]; then
+	#		deploy="n"
 
 			# Bitbucket repo address?
-			while [ -z $repo_ssh ]; do
-				echo -n "Enter bitbucket repo ssh link (Ex: git@bitbucket.org:<username>/<repo-name>.git): "
-				read repo_ssh
-			done
-		fi
-	done
+	#		while [ -z $repo_ssh ]; do
+	#			echo -n "Enter bitbucket repo ssh link (Ex: git@bitbucket.org:<username>/<repo-name>.git): "
+	#			read repo_ssh
+	#		done
+	#	fi
+	#done
 
 
 
@@ -462,58 +462,60 @@ require('./$wp_core_directory/wp-blog-header.php');" > $path/$site/htdocs/index.
 
 
 
+## TODO
 	# Adding git , Genesis and custom theme if set to yes
 	# =============================================================================
-	 if [[ $deploy == 'y' ]]; then
-		cd $path/$site/
-		git clone --mirror $repo_ssh
-		mkdir deploy
-		cd deploy/
-		touch index.html deploy.log bitbucket-hook.php
+	# if [[ $deploy == 'y' ]]; then
+	#	cd $path/$site/
+	#	git clone --mirror $repo_ssh
+	#	mkdir deploy
+	#	cd deploy/
+	#	touch index.html deploy.log bitbucket-hook.php
 
-		echo "<?php
-$repo_dir = '/home/<username>/<repo-name>.git';
-$web_root_dir = '$path/$site/htdocs/;
+	#	echo "<?php
+#$repo_dir = '/home/<username>/<repo-name>.git';
+#$web_root_dir = '$path/$site/htdocs/;
 
-// Full path to git binary is required if git is not in your PHP user's path. Otherwise just use 'git'.
-$git_bin_path = which git;
+#// Full path to git binary is required if git is not in your PHP user's path. Otherwise just use 'git'.
+#$git_bin_path = which git;
 
-$update = false;
+#$update = false;
 
-// Parse data from Bitbucket hook payload
-$payload = json_decode($_POST['payload']);
+#// Parse data from Bitbucket hook payload
+#$payload = json_decode($_POST['payload']);
 
-if (empty($payload->commits)){
-  // When merging and pushing to bitbucket, the commits array will be empty.
-  // In this case there is no way to know what branch was pushed to, so we will do an update.
-  $update = true;
-} else {
-  foreach ($payload->commits as $commit) {
-    $branch = $commit->branch;
-    if ($branch === 'production' || isset($commit->branches) && in_array('production', $commit->branches)) {
-      $update =	true;
-      break;
-    }
-  }
+#if (empty($payload->commits)){
+#  // When merging and pushing to bitbucket, the commits array will be empty.
+#  // In this case there is no way to know what branch was pushed to, so we will do an update.
+#  $update = true;
+#} else {
+#  foreach ($payload->commits as $commit) {
+#    $branch = $commit->branch;
+#    if ($branch === 'production' || isset($commit->branches) && in_array('production', $commit->branches)) {
+#      $update =	true;
+#      break;
+#    }
+#  }
 }
 
-if ($update) {
-  // Do a git checkout to the web root
-  exec('cd ' . $repo_dir . ' && ' . $git_bin_path  . ' fetch');
-  exec('cd ' . $repo_dir . ' && GIT_WORK_TREE=' . $web_root_dir . ' ' . $git_bin_path  . ' checkout -f');
+#if ($update) {
+#  // Do a git checkout to the web root
+#  exec('cd ' . $repo_dir . ' && ' . $git_bin_path  . ' fetch');
+#  exec('cd ' . $repo_dir . ' && GIT_WORK_TREE=' . $web_root_dir . ' ' . $git_bin_path  . ' checkout -f');
 
-  // Log the deployment
-  $commit_hash = shell_exec('cd ' . $repo_dir . ' && ' . $git_bin_path  . ' rev-parse --short HEAD');
-  file_put_contents('deploy.log', date('m/d/Y h:i:s a') . " Deployed branch: " .  $branch . " Commit: " . $commit_hash . "\n", FILE_APPEND);
-}
-?>" > bitbucket-hook.php
-	fi
+#  // Log the deployment
+#  $commit_hash = shell_exec('cd ' . $repo_dir . ' && ' . $git_bin_path  . ' rev-parse --short HEAD');
+#  file_put_contents('deploy.log', date('m/d/Y h:i:s a') . " Deployed branch: " .  $branch . " Commit: " . $commit_hash . "\n", FILE_APPEND);
+#}
+#?>" > bitbucket-hook.php
+#	fi
 
-	# TODO
 	# if [[ $wp_custom_structure = 'y' ]]; then
 	# 	mkdir $path/$site/htdocs/$wp_theme_directory/$custom_theme_directory
 	# 	# git clone $custom_theme $path/$site/htdocs/$wp_theme_directory/themes/$custom_theme_directory/
 	# fi
+
+## END TODO
 
 	# Set up Nginx sites available and sites enabled
 

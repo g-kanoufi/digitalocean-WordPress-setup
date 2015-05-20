@@ -7,7 +7,7 @@ This bash script makes it easy to spin up a new WordPress install using Digital 
 
 ## Installation
 
-Download the script and run `./dowp` from the directory the script is placed in(best in your www folder).
+Download the script and run `./dowp` from the directory the script is placed in(best in your www folder make sure to first make that file executable by doing chmod +x dowp).
 
 To run the script from anywhere, you can place `dowp` in a folder included in your PATH environment variable.
 
