@@ -1,0 +1,625 @@
+#!/bin/bash
+
+# =============================================================================
+# Digital Ocean - Ubuntu - Nginx -Wordpress set up with composer and wp-cli
+#
+# By Guillaume Kanoufi <guillaume@lostwebdesigns.com>
+# Ubuntu Ngnix wordpress set up https://github.com/g-kanoufi/nginx-wp-setup
+#
+# Based on Alison Barrett <alison@barre.tt>  vvv-site-wizzard  https://github.com/aliso/vvv-site-wizard
+#
+# Version 0.8
+#
+# This script automates the creation & deletion of new WordPress sites using
+# VPS with Ubuntu - Nginx
+#
+# Usage:
+# wp_setup create|delete|list
+# =============================================================================
+#
+
+
+
+
+# =============================================================================
+# Helper function since a green "Done." is used in a lot of places
+# =============================================================================
+done_text() { echo -e "\033[32mDone.\033[0m"; return; }
+
+
+# =============================================================================
+# Create db Function
+# =============================================================================
+create_db() {
+	EXPECTED_ARGS=3
+	E_BADARGS=65
+	MYSQL=`which mysql`
+
+	Q1="CREATE DATABASE IF NOT EXISTS $1;"
+	Q2="CREATE USER $2@localhost IDENTIFIED BY '$3';"
+	Q3="GRANT ALL PRIVILEGES ON $1.* TO $2@localhost;"
+	Q4="FLUSH PRIVILEGES;"
+	SQL="${Q1}${Q2}${Q3}${Q4}"
+
+	if [ $# -ne $EXPECTED_ARGS ]
+	then
+	  echo "Usage: $0 dbname dbuser dbpass"
+	  exit $E_BADARGS
+	fi
+
+	$MYSQL -uroot -p -e "$SQL"
+}
+
+# =============================================================================
+# Helper function to make colored text easier to code and more readable
+# within the code.
+# =============================================================================
+cecho() {
+	message=$1
+	color=${2:-'default'}
+	attribute=${3:-'none'}
+
+	color_type='3'
+	color_code='0'
+	if [[ $color = 'black' ]]; then
+		color_code='0'
+	elif [[ $color = 'red' ]]; then
+		color_code='1'
+	elif [[ $color = 'green' ]]; then
+		color_code='2'
+	elif [[ $color = 'yellow' ]]; then
+		color_code='3'
+	elif [[ $color = 'blue' ]]; then
+		color_code='4'
+	elif [[ $color = 'magenta' ]]; then
+		color_code='5'
+	elif [[ $color = 'cyan' ]]; then
+		color_code='6'
+	elif [[ $color = 'white' ]]; then
+		color_code='7'
+	fi
+
+	attribute_code=''
+	if [[ $attribute = 'bold' ]]; then
+		attribute_code=';1'
+	elif [[ $attribute = 'underlined' ]]; then
+		attribute_code=';4'
+	elif [[ $attribute = 'reverse' ]]; then
+		attribute_code=';7'
+	elif [[ $attribute = 'background' ]]; then
+		color_type='0;1;4'
+	fi
+
+	# set text attributes
+	echo -en "\033[${color_type}${color_code}${attribute_code}m"
+	# echo text
+	echo -en "$message"
+	# reset text attributes
+	echo -en "\033[0m\n"
+
+	return
+}
+
+
+# =============================================================================
+# Get the action if it was not specified
+# =============================================================================
+while [ -z $action ]; do
+	read -e -p "Action (create|delete): " action
+
+	if [ -z $action ]; then
+		cecho "You must choose an action." red
+	elif [[ $action != 'create' && $action != 'delete' ]]; then
+		cecho "Answer create or delete." red
+		unset action
+	fi
+done
+
+# =============================================================================
+# Get the setup root directory if the user is entering a valid command
+#
+# This is placed outside of the action conditionals below because setting the
+# directory is required for every possible action.
+# =============================================================================
+if [[ $action = 'new' || $action = 'make' || $action = 'create' || $action = 'delete' || $action = 'teardown' || $action = 'rm' ]]; then
+	# Get www root dir
+	path=~/www
+fi
+
+# =============================================================================
+# Create a site
+#
+# New sites are created with a fresh installation of WordPress trunk.
+#
+# New site credentials:
+# Username: admin
+# Password: password
+#
+# If you want to see the files that are created without spinning up the new
+# site, use a third parameter of 'filesonly'. Example:
+# vvv [new|create|make] site filesonly
+# =============================================================================
+if [[ $action = 'new' || $action = 'make' || $action = 'create' ]]; then
+
+
+	# Prompt user for vars
+	# =============================================================================
+
+	# Get site dir name if not supplied as argument
+	if [ -d "$path/$site" ]; then
+		cecho "Directory $path/$site already exists." red
+		unset site
+	fi
+	while [ -z $site ]; do
+		read -e -p "Name of new site directory: " site
+
+		if [ -z $site ]; then
+			cecho "You must enter a directory name." red
+		elif [ -d "$path/$site" ]; then
+			cecho "Directory already exists." red
+			unset site
+		fi
+	done
+
+	# Get website URL
+	while [ -z $domain ]; do
+		echo -n "Domain to use: (if you haven't buy your domain yet, don't worry, instructions will be shown on how to get to work after the install)"
+		read domain
+	done
+
+
+	# DB vars - user - db_name db_pass
+
+	while [[ -z $db_name ]]; do
+		echo -n "Database Name(Leave blank for $site): "
+		read db_name
+		if [ -z $db_name ]; then
+			db_name=$site
+		fi
+	done
+
+	while [[ -z $db_user ]]; do
+		echo -n "Database Username(Leave blank for '$site\_user'): "
+		read db_user
+		if [ -z $db_user ]; then
+			db_user=$site"_user"
+		fi
+	done
+
+	while [ -z $db_password ]; do
+		read -e -p "db password: " db_password
+
+		if [ -z $db_password ]; then
+			cecho "You must choose an db password." red
+		fi
+	done
+
+	while [ -z $wp_prefix ]; do
+		echo -n "Choose prefix (leave blank for wp_): "
+		read wp_prefix
+		if [ -z $wp_prefix ]; then
+			wp_prefix="wp_"
+		fi
+	done
+
+	# WP vars
+
+	while [[ -z $version ]]; do
+		# Get WordPress version
+		echo -n "WordPress version to install (leave blank for stable version): "
+		read version
+		if [ -z $version ]; then
+			installversion=""
+			version="(stable version)"
+		else
+			# Attempt to verify the existence of the version (hacky)
+			if curl -s http://codex.wordpress.org/Version_$version | grep 'currently no text' > /dev/null; then
+				cecho "Version $version not found, try again" red
+				unset version
+			else
+				installversion=" --version=$version"
+			fi
+		fi
+	done
+
+	while [ -z $wp_lang ]; do
+		echo -n "Choose lang (leave blank for en_US): "
+		read wp_lang
+		if [ -z $wp_lang ]; then
+			wp_lang="en_US"
+		fi
+	done
+
+	# Ask if WP_DEBUG should be turned on
+	while [ -z $wp_debug ]; do
+		echo -n "Enable WP_DEBUG and WP_DEBUG_LOG (Y/n): "
+		read wp_debug
+		if [[ $wp_debug != 'y' && $wp_debug != 'n' ]]; then
+			wp_debug="y"
+		fi
+	done
+
+	# Get username and password and user email
+	# =============================================================================
+	while [ -z $wp_username ]; do
+		echo -n "Username (leave blank for admin): "
+		read wp_username
+		if [ -z $wp_username ]; then
+			wp_username="admin"
+		fi
+	done
+
+	while [ -z $wp_password ]; do
+		echo -n "Choose password (leave blank for password): "
+		read wp_password
+		if [ -z $wp_password ]; then
+			wp_password="password"
+		fi
+	done
+
+	while [ -z $wp_email ]; do
+		echo -n "Admin Email (leave blank for youremail@email.com): "
+		read wp_email
+		if [ -z $wp_email ]; then
+			wp_email="youremail@email.com"
+		fi
+	done
+
+	# Get Wordpress directory
+	# =============================================================================
+	while [ -z $wp_custom_structure ]; do
+		echo -n "Custom directories name (Y/n - default will create a \"wordpress\" folder with core and \"wp-content\" folder with plugins and themes): "
+		read wp_custom_structure
+		if [[ $wp_custom_structure != 'y' && $wp_custom_structure != 'n' ]]; then
+			wp_custom_structure="y"
+			while [ -z $wp_theme_directory ]; do
+				echo -n "Theme directory (leave blank for content): "
+				read wp_theme_directory
+				if [ -z $wp_theme_directory ]; then
+					wp_theme_directory="content"
+				fi
+			done
+
+			while [ -z $wp_core_directory ]; do
+				echo -n "WP Core directory (leave blank for admin): "
+				read wp_core_directory
+				if [ -z $wp_core_directory ]; then
+					wp_core_directory="admin"
+				fi
+			done
+		else
+			wp_core_directory="wordpress"
+			wp_theme_directory="wp-content"
+		fi
+	done
+
+
+
+	while [ -z $deploy ]; do
+		echo -n "Deploy from  bitbucket (y/N): "
+		read deploy
+		if [[ $deploy != 'y' && $deploy != 'n' ]]; then
+			deploy="n"
+
+			# Bitbucket repo address?
+			while [ -z $repo_ssh ]; do
+				echo -n "Enter bitbucket repo ssh link (Ex: git@bitbucket.org:<username>/<repo-name>.git): "
+				read repo_ssh
+			done
+		fi
+	done
+
+
+
+
+
+
+	# Inform the user of what's about to happen and give them a chance to back out
+	# =============================================================================
+	cecho "\nAbout to perform the following:" normal bold
+	echo -e "* Create db $db_name with a user: $db_user / password: $db_password, directory $site in $path/www\n and composer.json file"
+
+	# Start the par-tay
+	# =============================================================================
+
+
+	# Create site folder with and composer.json file file
+	# =============================================================================
+	cd $path
+	echo -en "Creating site directory and wp-cli.yml"
+	mkdir $site && cd $site
+
+	# printf "path: htdocs/$wp_core_directory\nurl:http://$domain" > wp-cli.yml
+
+	printf ".DS_store" > .gitignore
+
+	printf "{
+	\"name\"       : \"$site\",
+	\"description\" : \"WordPress vps setup kit via Composer\",
+	\"authors\"     : [
+		{
+			\"name\"    : \"Guillaume Kanoufi\",
+			\"email\"   : \"guillaume@lostwebdesigns.com\",
+			\"homepage\": \"http://lostwebdesigns.com/\"
+		}
+	],
+	\"type\"        : \"website\",
+	\"minimum-stability\": \"stable\",
+	\"repositories\": [
+		{
+			\"type\": \"composer\",
+			\"url\" : \"http://wpackagist.org\"
+		},
+		{
+			\"type\": \"composer\",
+			\"url\" : \"http://rarst.net\"
+		}
+	],
+	\"config\"      : {
+		\"vendor-dir\":  \"vendor\"
+	},
+	\"require\"     : {
+		\"johnpbloch/wordpress\"                        : \"*\",
+		\"wpackagist-plugin/wordpress-seo\"            : \"*\",
+		\"wpackagist-plugin/wordpress-importer\"            : \"*\",
+		\"wpackagist-plugin/advanced-custom-fields\"            : \"*\",
+		\"wpackagist-theme/twentyfifteen\"             : \"*\"
+	},
+	\"require-dev\" : {
+		\"wpackagist-plugin/log-deprecated-notices\"    : \"*\"
+	},
+	\"extra\"       : {
+		\"wordpress-install-dir\": \"$wp_core_directory/\",
+		\"installer-paths\": {
+			\"$wp_theme_directory/plugins/{\$name}\" : [\"type:wordpress-plugin\"],
+			\"$wp_theme_directory/themes/{\$name}\"  : [\"type:wordpress-theme\"]
+		}
+	}
+}" >> composer.json
+
+
+
+	printf "Creating database '$site' (if it does not exist)...\n\n"
+	create_db $db_name $db_user $db_password
+
+
+	printf "Installing wordpress with composer\n\n"
+
+	if [ ! -d $path/$site/htdocs ]; then
+		mkdir $path/$site/htdocs
+		mv composer.json $path/$site/htdocs/
+		cd $path/$site/htdocs
+	fi
+
+	composer install --prefer-dist
+
+	if [ ! -f $site/htdocs/wp-config.php ]; then
+		echo "Initialising WordPress $version in $site/htdocs/$wp_core_directory"
+		cd $path/$site/htdocs/$wp_core_directory
+
+		if [[ $wp_debug = 'y' ]]; then
+			wp core config --dbname=$db_name --dbuser=$db_user --dbpass=$db_password --dbhost='localhost' --dbprefix=$wp_prefix --allow-root --extra-php <<PHP
+define('WPLANG', '$wp_lang');
+define('WP_DEBUG', true);
+define('WP_DEBUG_LOG', true);
+define('WP_DEBUG_DISPLAY', false);
+define( 'WP_CONTENT_DIR', dirname(__FILE__) . '/$wp_theme_directory/' );
+define( 'WP_SITEURL',     '$domain/$wp_core_directory/');
+define('WP_HOME',    'http://$domain');
+define('WP_CONTENT_URL', 'http://$domain/$wp_theme_directory/');
+/*define( 'WP_POST_REVISIONS', 2 );*/
+PHP
+		else
+			wp core config --dbname=$db_name --dbuser=$db_user --dbpass=$db_password --dbhost='localhost' --dbprefix=$wp_prefix --allow-root --extra-php <<PHP
+define('WPLANG', '$wp_lang');
+define( 'WP_CONTENT_DIR', dirname(__FILE__) . '/$wp_theme_directory/' );
+define( 'WP_SITEURL',     '$domain/$wp_core_directory/');
+define('WP_HOME',    'http://$domain');
+define('WP_CONTENT_URL', 'http://$domain/$wp_theme_directory/');
+/*define( 'WP_POST_REVISIONS', 2 );*/
+PHP
+		fi
+
+
+		mv $path/$site/htdocs/$wp_core_directory/wp-config.php $path/$site/htdocs/
+
+
+		wp core install --url=$domain --title="$site - A WordPress Site" --admin_user=$wp_username --admin_password=$wp_password --admin_email=$wp_email --allow-root
+
+	else
+
+		echo 'Updating WordPress in $site/htdocs...'
+		cd $path/$site/htdocs/$wp_core_directory
+		wp core update --allow-root
+		wp core update-db --allow-root
+	fi
+
+	done_text
+
+
+	# add Index.php in root
+	# =============================================================================
+	echo -en "Adding separate dirs wordpress index.php"
+	touch $path/$site/htdocs/index.php
+
+	printf "<?php
+/**
+ * Front to the WordPress application. This file doesn't do anything, but loads
+ * wp-blog-header.php which does and tells WordPress to load the theme.
+ *
+ * @package WordPress\n
+ */
+/**
+ * Tells WordPress to load the WordPress theme and output it.
+ *
+ * @var bool
+ */
+define('WP_USE_THEMES', true);
+/** Loads the WordPress Environment and Template */
+require('./$wp_core_directory/wp-blog-header.php');" > $path/$site/htdocs/index.php
+	done_text
+
+
+
+
+	# Adding git , Genesis and custom theme if set to yes
+	# =============================================================================
+	 if [[ $deploy == 'y' ]]; then
+		cd $path/$site/
+		git clone --mirror $repo_ssh
+		mkdir deploy
+		cd deploy/
+		touch index.html deploy.log bitbucket-hook.php
+
+		echo "<?php
+$repo_dir = '/home/<username>/<repo-name>.git';
+$web_root_dir = '$path/$site/htdocs/;
+
+// Full path to git binary is required if git is not in your PHP user's path. Otherwise just use 'git'.
+$git_bin_path = which git;
+
+$update = false;
+
+// Parse data from Bitbucket hook payload
+$payload = json_decode($_POST['payload']);
+
+if (empty($payload->commits)){
+  // When merging and pushing to bitbucket, the commits array will be empty.
+  // In this case there is no way to know what branch was pushed to, so we will do an update.
+  $update = true;
+} else {
+  foreach ($payload->commits as $commit) {
+    $branch = $commit->branch;
+    if ($branch === 'production' || isset($commit->branches) && in_array('production', $commit->branches)) {
+      $update =	true;
+      break;
+    }
+  }
+}
+
+if ($update) {
+  // Do a git checkout to the web root
+  exec('cd ' . $repo_dir . ' && ' . $git_bin_path  . ' fetch');
+  exec('cd ' . $repo_dir . ' && GIT_WORK_TREE=' . $web_root_dir . ' ' . $git_bin_path  . ' checkout -f');
+
+  // Log the deployment
+  $commit_hash = shell_exec('cd ' . $repo_dir . ' && ' . $git_bin_path  . ' rev-parse --short HEAD');
+  file_put_contents('deploy.log', date('m/d/Y h:i:s a') . " Deployed branch: " .  $branch . " Commit: " . $commit_hash . "\n", FILE_APPEND);
+}
+?>" > bitbucket-hook.php
+	fi
+
+	# TODO
+	# if [[ $wp_custom_structure = 'y' ]]; then
+	# 	mkdir $path/$site/htdocs/$wp_theme_directory/$custom_theme_directory
+	# 	# git clone $custom_theme $path/$site/htdocs/$wp_theme_directory/themes/$custom_theme_directory/
+	# fi
+
+	# Set up Nginx sites available and sites enabled
+
+	touch $path/$site/$domain
+
+	printf "server {
+	server_name $domain;
+	listen 80;
+	listen 443 ssl;
+
+	root /home/webmaster/www/$site/htdocs;
+	index index.php index.html;
+
+	include /etc/nginx/nginx-wp-common.conf;
+
+}" > $path/$site/$domain
+
+	sudo ln -s $path/$site/$domain /etc/nginx/sites-available/
+	sudo ln -s $path/$site/$domain /etc/nginx/sites-enabled/
+
+	$server_ip = $SSH_CONNECTION | awk {'print $3'}
+
+
+	cecho "\nNew wordpress Site Setup: Done!" blue bold
+	echo "Directory: $path/$site"
+	echo "URL:       $domain"
+	echo "Username:  $wp_username"
+	echo "Password:  $wp_password"
+	echo "Database:       $db_name"
+	echo "Database User:  $db_user"
+	echo "Database Password:  $db_password"
+
+	echo "If you have no domain set up yet and be able to see your website at $domain, update your machine hosts file with the following:"
+	echo "$server_ip  $domain"
+
+	exit
+
+# =============================================================================
+# Delete a site
+#
+# This will remove the site folder from www and remove the .conf file from
+# nginx-config. Sites and folders installed by default with VVV cannot be
+# deleted this way.
+# =============================================================================
+elif [[ $action = 'teardown' || $action = 'delete' || $action = 'rm' ]]; then
+
+	cecho "\nSite Teardown" blue bold
+
+	# Get site dir name if not supplied as argument
+	while [ -z $site ]; do
+		echo -n "Site directory to delete: "
+		read site
+
+		if [[ -z $site || ! -d "$path/$site" ]]; then
+			cecho "You must enter a valid directory from $path/."
+			unset site
+		elif [[ $site = 'wordpress-default' || $site = 'wordpress-develop' || $site = 'wordpress-trunk' || $site = 'default' || $site = 'phpcs' || $site = 'vvv-hosts' || $site = 'wp-cli' || $site = '.gitshow' ]]; then
+			cecho "This script can't delete the default VVV folders." red
+			unset site
+		fi
+	done
+
+	while [ -z $domain ]; do
+		echo -n "Site domain to delete: "
+		read domain
+
+		if [[ -z $domain || ! -f $path/$site/$domain ]]; then
+			cecho "You must enter a valid site domain."
+			unset domain
+		fi
+	done
+
+	# Start the deletion par-tay
+	# =============================================================================
+	echo -e "\nAbout to perform the following:\n\n* Delete directory $site in $path/\n* Delete file $site.conf in sites-available\n"
+	while [ -z $continue_delete ]; do
+		echo -n "Continue (y/n)? "
+		read continue_delete
+		if [ $continue_delete = 'y' ]; then
+			cecho "\nTeardown starting for site '$site'" green
+			cd $path
+
+			# Delete the site folder
+			echo -en "Removing directory $site... "
+			rm -rf $path/$site
+			done_text
+
+			# Remove the nginx conf file
+			echo -en "Removing nginx config file $site.conf... "
+			sudo rm /etc/nginx/sites-available/$domain
+			sudo rm /etc/nginx/sites-enabled/$domain
+			done_text
+
+			# Delorted.
+			cecho "\nSite Teardown: Done!" blue bold
+			exit
+
+		elif [ $continue_delete = 'n' ]; then
+			cecho "Site teardown aborted." red
+			exit
+		else
+			cecho "Answer y or n." red
+			unset continue_delete
+		fi
+	done
+	exit
+
+
+fi
