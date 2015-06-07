@@ -1,6 +1,6 @@
 # Digital Ocean WordPress Setup
 
-Version 0.9
+Version 0.9.1
 
 This bash script makes it easy to spin up a new WordPress install using Digital Ocean VPS with Ubuntu and Nginx.
 
@@ -16,7 +16,7 @@ If you don't want to define the path each time you run the script, open the file
 
 ## Usage
 
-Type `./dowp` or `dowp` if in your PATH environment variable and just follow the and answer the proposed options 
+Type `./dowp` or `dowp` if in your PATH environment variable and just follow the and answer the proposed options
 
 
 ## WordPress website creation
@@ -37,6 +37,8 @@ Creating a new WordPress website ask you and does the following:
 
 * WP directory structure, as a security matter, this will be set by default to `wordpress` for the core folder and `wp_content` for your plugin, uploads and themes folder, but this will ask you for new folders name if you decide to(default then to `admin` and `content`)
 
+* Make sure to update `fastcgi_pass` value in nginx-wp-common.conf file on line 85 according to your nginx.conf file
+
 * TODO add a deploy folder for easy deploying from github or bitbucket
 
 Once you have answered all this questions, this script will do:
@@ -55,13 +57,13 @@ Once you have answered all this questions, this script will do:
   * Your password
   * Your Database creds
   * And what to add to your computer `hosts` file in order to work on your website if you haven't yet your domain name
-  
+
 
 ## WordPress Webite Deletion
 
 Deleting a site does the following:
 
-* Deletes the site's web root 
+* Deletes the site's web root
 * Deletes the `yourdomain.com` file in your website directory and the symbolic links in the `sites-enabled` `sites-available` folders
 
 Note that it does not delete the site's database.
@@ -83,6 +85,9 @@ Add possibility to Deploy from GitHub and Bitbucket on push
 [Tomaž Zaman](https://twitter.com/tomazzaman) for his very clear and easy [Tutorial on setting up a Digital Ocean VPS](https://codeable.io/community/how-to-set-up-wordpress-vps/)
 
 ## Changelog
+
+### 0.9.2
+* Added nginx-wp-common.conf file and www redirection to non www
 
 ### 0.9
 
