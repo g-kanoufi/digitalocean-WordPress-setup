@@ -37,6 +37,8 @@ Creating a new WordPress website ask you and does the following:
 
 * WP directory structure, as a security matter, this will be set by default to `wordpress` for the core folder and `wp_content` for your plugin, uploads and themes folder, but this will ask you for new folders name if you decide to(default then to `admin` and `content`)
 
+* During the install it will ask you for a password, this is your mysql root password for creation of both the database and user
+
 * Make sure to update `fastcgi_pass` value in nginx-wp-common.conf file on line 85 according to your nginx.conf file
 
 * TODO add a deploy folder for easy deploying from github or bitbucket
@@ -57,6 +59,8 @@ Once you have answered all this questions, this script will do:
   * Your password
   * Your Database creds
   * And what to add to your computer `hosts` file in order to work on your website if you haven't yet your domain name
+
+* Once install is done, make sure to reload/restart nginx `sudo service nginx reload`
 
 
 ## WordPress Webite Deletion

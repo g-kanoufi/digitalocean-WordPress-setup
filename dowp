@@ -163,7 +163,7 @@ if [[ $action = 'new' || $action = 'make' || $action = 'create' ]]; then
 
 	# Get website URL
 	while [ -z $domain ]; do
-		echo -n "Domain to use (without www): \n
+		echo -n "Domain to use (without www):
 		(if you haven't buy your domain yet, don't worry, instructions will be shown on how to get to work after the install)"
 		read domain
 	done
@@ -407,7 +407,7 @@ define('WP_DEBUG_DISPLAY', false);
 define( 'WP_CONTENT_DIR', dirname(__FILE__) . '/$wp_theme_directory/' );
 define( 'WP_SITEURL',     '//$domain/$wp_core_directory/');
 define('WP_HOME',    '//$domain');
-define('WP_CONTENT_URL', '//$domain/$wp_theme_directory/');
+define('WP_CONTENT_URL', '//$domain/$wp_theme_directory');
 /*define( 'WP_POST_REVISIONS', 2 );*/
 PHP
 		else
@@ -526,7 +526,7 @@ require('./$wp_core_directory/wp-blog-header.php');" > $path/$site/htdocs/index.
 	listen [::]:80;
 	listen 443 ssl;
        server_name  www.$domain;
-       rewrite ^(.*) $scheme://$domain$1 permanent;
+       rewrite ^(.*) \$scheme://$domain\$1 permanent;
 }
 
 server {
