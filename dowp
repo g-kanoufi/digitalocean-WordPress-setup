@@ -399,7 +399,7 @@ if [[ $action = 'new' || $action = 'make' || $action = 'create' ]]; then
 		cd $path/$site/htdocs/$wp_core_directory
 
 		if [[ $wp_debug = 'y' ]]; then
-			wp core config --dbname=$db_name --dbuser=$db_user --dbpass=$db_password --dbhost='localhost' --dbprefix=$wp_prefix --allow-root --extra-php <<PHP
+			wp core config --dbname=$db_name --dbuser=$db_user --dbpass=$db_password --dbhost='Localhost' --dbprefix=$wp_prefix --allow-root --extra-php <<PHP
 define('WPLANG', '$wp_lang');
 define('WP_DEBUG', true);
 define('WP_DEBUG_LOG', true);
@@ -411,12 +411,12 @@ define('WP_CONTENT_URL', '//$domain/$wp_theme_directory/');
 /*define( 'WP_POST_REVISIONS', 2 );*/
 PHP
 		else
-			wp core config --dbname=$db_name --dbuser=$db_user --dbpass=$db_password --dbhost='localhost' --dbprefix=$wp_prefix --allow-root --extra-php <<PHP
+			wp core config --dbname=$db_name --dbuser=$db_user --dbpass=$db_password --dbhost='Localhost' --dbprefix=$wp_prefix --allow-root --extra-php <<PHP
 define('WPLANG', '$wp_lang');
 define( 'WP_CONTENT_DIR', dirname(__FILE__) . '/$wp_theme_directory/' );
 define( 'WP_SITEURL',     '//$domain/$wp_core_directory/');
 define('WP_HOME',    '//$domain');
-define('WP_CONTENT_URL', '//$domain/$wp_theme_directory/');
+define('WP_CONTENT_URL', '//$domain/$wp_theme_directory');
 /*define( 'WP_POST_REVISIONS', 2 );*/
 PHP
 		fi
