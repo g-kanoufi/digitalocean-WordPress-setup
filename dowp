@@ -640,6 +640,8 @@ location ~ \.php$ {
 
     # Use the upstream for php5-fpm that we defined in nginx.conf
     fastcgi_pass unix:/var/run/php5-fpm.sock;
+     # If using hhvm uncomment below and comment above
+    #fastcgi_pass unix:/var/run/hhvm/hhvm.sock;
 
     # And get to serving the file!
     fastcgi_index  index.php;
