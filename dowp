@@ -524,15 +524,15 @@ require('./$wp_core_directory/wp-blog-header.php');" > $path/$site/htdocs/index.
 	printf "server {
 	listen 80;
 	listen [::]:80;
-	listen 443 ssl;
+	#listen 443 ssl;
        server_name  www.$domain;
-       rewrite ^(.*) \$scheme://$domain\$1 permanent;
+       return 301 \$scheme://$domain\$request_uri;
 }
 
 server {
 	listen 80;
 	listen [::]:80;
-	listen 443 ssl;
+	#listen 443 ssl;
 	server_name $domain;
 
 	root /home/webmaster/www/$site/htdocs;
